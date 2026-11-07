@@ -1,0 +1,8 @@
+{ 
+	"uuid": "screen-curtain@accessibility.local",
+	"name": "Screen Curtain Layer", 
+	"description": "Draws an opaque black curtain over the screen layer with adjustable Speech Dispatcher feedback.",
+	"shell-version": [ "50", "51" ],
+	"url": "",
+	"settings-schema": "org.gnome.shell.extensions.screen-curtain" 
+}

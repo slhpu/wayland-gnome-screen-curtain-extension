@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.screen-curtain" path="/org/gnome/shell/extensions/screen-curtain/">
+    <key name="curtain-shortcut" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;m']</default>
+      <summary>Custom shortcut key to toggle screen curtain</summary>
+    </key>
+    <key name="speech-rate" type="i">
+      <default>50</default>
+      <summary>Speech Dispatcher rate offset value between -100 and 100</summary>
+    </key>
+    <!-- Add the missing key right here -->
+    <key name="curtain-active" type="b">
+      <default>false</default>
+      <summary>Stores the state of the screen curtain for use in extension.js</summary>
+    </key>
+    <key name="status-shortcut" type="as">
+      <default>[]</default>
+      <summary>Custom keyboard shortcut to check the state of the screen curtain</summary>
+    </key>
+  </schema>
+</schemalist>
