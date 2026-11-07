@@ -4,7 +4,15 @@ A GNOME Shell extension built for Wayland compositors that creates a pure black 
 
 Prerequisites:
 
-This extension utilizes brightnessctl to drop hardware backlight brightness to zero. Please ensure brightnessctl is installed via your system package manager (e.g., sudo dnf install brightnessctl on Fedora).
+This extension utilizes brightnessctl to drop hardware backlight brightness to zero. 
+
+Please ensure brightnessctl is installed via your system package manager 
+
+sudo dnf install brightnessctl on Fedora
+
+sudo apt install brightnessctl on ubuntu
+
+This is not a hard requirement, the extension will check your PATH environment variable to check if brightnessctl is installed and if it is not that code will not execute.
 
 Features:
 
