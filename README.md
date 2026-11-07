@@ -28,7 +28,7 @@ If you can't get brightnessctl, don't worry, the extension will check your PATH 
 
 Clone or download this repository into your local GNOME extensions directory: git clone https://github.com/your-username/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local
 
-The schema file should already be present in the schemas folder, you can check by looking for schemas.compiled if it is not in the schemas folder or the extension erros then delete the file and compile the schema.
+The schema file should already be present in the schemas folder, you can check by looking for gschemas.compiled in the schemas folder, if it is not in the schemas folder or the extension erros then delete the file and compile the schema.
 Compile the GSettings schema files: glib-compile-schemas ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local/schemas/
 
 Restart GNOME Shell (or log out and back in on Wayland).
