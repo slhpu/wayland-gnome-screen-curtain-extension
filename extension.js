@@ -201,12 +201,14 @@ export default class ScreenCurtainExtension extends Extension {
         this._hasBrightnessCtl = false;
     }
 
+    //Reset the size of the overlay on new screen size
     _resetGroupSize() {
         if (this._actorGroup) {
             this._actorGroup.set_size(global.screen_width, global.screen_height);
         }
     }
 
+    //Continue to Stack the Overlay above new Parent groups spawned in Global.stage
     _restackOverlays() {
         if (!this._actorGroup) return;
 
