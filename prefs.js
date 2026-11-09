@@ -12,7 +12,7 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         let settings = this.getSettings();
         let page = new Adw.PreferencesPage();
 
-        // Toggle Shortcut Button
+        // 1. Curtain Toggle Shortcut Group (First)
         const deleteShortcutButton = new Gtk.Button({
             icon_name: 'edit-delete-symbolic',
             valign: Gtk.Align.CENTER,
@@ -22,8 +22,8 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             tooltip_text: 'Delete screen curtain toggle shortcut'
         });
 
-        let group = new Adw.PreferencesGroup({
-            title: 'Curtain Settings',
+        let groupCurtain = new Adw.PreferencesGroup({
+            title: 'Curtain Toggle Shortcut',
             header_suffix: deleteShortcutButton
         });
 
@@ -34,7 +34,6 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             'Press Enter to set or change shortcut'
         );
 
-        // Hide/Show delete button based on active state
         if (!shortcutKeyBoard.isAcceleratorSet()) {
             deleteShortcutButton.visible = false;
         }
@@ -51,9 +50,10 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             }
         });
 
-        group.add(shortcutKeyBoard);
+        groupCurtain.add(shortcutKeyBoard);
+        page.add(groupCurtain);
 
-        // Status Announcement Shortcut Row Widget
+        // 2. Status Announcement Shortcut Group (Second)
         const deleteStatusButton = new Gtk.Button({
             icon_name: 'edit-delete-symbolic',
             valign: Gtk.Align.CENTER,
@@ -63,8 +63,8 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             tooltip_text: 'Delete screen curtain status shortcut'
         });
 
-        let statusGroup = new Adw.PreferencesGroup({
-            title: 'Status Announcement Settings',
+        let groupStatus = new Adw.PreferencesGroup({
+            title: 'Status Announcement Shortcut',
             header_suffix: deleteStatusButton
         });
 
@@ -91,9 +91,14 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             }
         });
 
-        statusGroup.add(statusShortcutKeyBoard);
+        groupStatus.add(statusShortcutKeyBoard);
+        page.add(groupStatus);
 
-        // Speech Rate Slider Row
+        // 3. Speech Settings Group (Slider Last)
+        let speechGroup = new Adw.PreferencesGroup({
+            title: 'Speech Settings'
+        });
+
         let rateRow = new Adw.ActionRow({
             title: 'Speech Output Rate Adjustment',
             subtitle: 'Alters the speech rate of the speech dispatcher voice output using up/down arrows or page up/page down'
@@ -123,10 +128,9 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         });
 
         rateRow.add_suffix(scale);
-        group.add(rateRow);
+        speechGroup.add(rateRow);
+        page.add(speechGroup);
 
-        page.add(group);
-        page.add(statusGroup);
         window.add(page);
     }
 }
@@ -172,20 +176,22 @@ const ShortcutSettingWidget = class extends Adw.ActionRow {
 
         this.shortcutBox.append(this.shortLabel);
 
-        // Bind signals
         this.connect('activated', this._onActivated.bind(this));
         this.bind_property('shortcut', this.shortLabel, 'accelerator', GObject.BindingFlags.DEFAULT);
-        [this.shortcut] = this._settings.get_strv(this._key);
+        
+        let [savedAccel] = this._settings.get_strv(this._key);
+        this.shortcut = savedAccel || '';
 
         this.add_suffix(this.shortcutBox);
     }
 
     isAcceleratorSet() {
-        return Boolean(this.shortLabel.get_accelerator());
+        let [val] = this._settings.get_strv(this._key);
+        return Boolean(val && val.trim() !== '');
     }
 
     resetAccelerator() {
-        this.saveShortcut(); // Clear shortcut
+        this.saveShortcut(); 
     }
 
     _onActivated(widget) {
@@ -221,7 +227,7 @@ const ShortcutSettingWidget = class extends Adw.ActionRow {
         }
 
         if (keyval === Gdk.KEY_BackSpace) {
-            this.saveShortcut(); // Clear shortcut
+            this.saveShortcut(); 
             return Gdk.EVENT_STOP;
         }
 
