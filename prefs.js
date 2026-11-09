@@ -18,7 +18,8 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             valign: Gtk.Align.CENTER,
             css_classes: ['error'],
             hexpand: false,
-            vexpand: false
+            vexpand: false,
+            tooltip_text: 'Delete screen curtain toggle shortcut'
         });
 
         let group = new Adw.PreferencesGroup({
@@ -30,7 +31,7 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             settings,
             'curtain-shortcut',
             'Toggle Keybind',
-            'Press Backspace to clear shortcut'
+            'Press Enter to set or change shortcut'
         );
 
         // Hide/Show delete button based on active state
@@ -58,7 +59,8 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             valign: Gtk.Align.CENTER,
             css_classes: ['error'],
             hexpand: false,
-            vexpand: false
+            vexpand: false,
+            tooltip_text: 'Delete screen curtain status shortcut'
         });
 
         let statusGroup = new Adw.PreferencesGroup({
@@ -70,7 +72,7 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
             settings,
             'status-shortcut',
             'Status Announcement Keybind',
-            'Press Backspace to clear shortcut'
+            'Press Enter to set or change shortcut'
         );
 
         if (!statusShortcutKeyBoard.isAcceleratorSet()) {
