@@ -15,7 +15,7 @@
       <summary>Stores the state of the screen curtain for use in extension.js</summary>
     </key>
     <key name="status-shortcut" type="as">
-      <default>[]</default>
+      <default>['&lt;Control&gt;&lt;Super&gt;m']</default>
       <summary>Custom keyboard shortcut to check the state of the screen curtain</summary>
     </key>
   </schema>
