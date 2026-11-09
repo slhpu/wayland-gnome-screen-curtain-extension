@@ -16,6 +16,16 @@ This is not a hard requirement, the extension will check your PATH environment v
 
 Features:
 
+Customizable keyboard shortcuts in preferences to toggle the screen curtain and check the screen curtain state.
+
+By default these are:
+
+Toggle screen curtain; Ctrl + Alt + m
+
+Check screen curtain status; Ctrl + Super + m
+
+Customizable voice rate slider in preferences to change the voice rate.
+
 Pure black curtain overlays mapped across all active monitors.
 
 Hardware backlight dimming via brightnessctl integration.
