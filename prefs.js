@@ -96,14 +96,14 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         // Speech Rate Slider Row
         let rateRow = new Adw.ActionRow({
             title: 'Speech Output Rate Adjustment',
-            subtitle: 'Alters output speed variables handled by the local audio loop'
+            subtitle: 'Alters the speech rate of the speech dispatcher voice output using up/down arrows or page up/page down'
         });
 
         let adjustment = new Gtk.Adjustment({
             lower: -100,
             upper: 100,
-            step_increment: 5,
-            page_increment: 10,
+            step_increment: 1,
+            page_increment: 5,
             value: settings.get_int('speech-rate')
         });
 
