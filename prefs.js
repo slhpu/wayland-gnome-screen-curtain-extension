@@ -23,14 +23,14 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         });
 
         let groupCurtain = new Adw.PreferencesGroup({
-            title: 'Curtain Toggle Shortcut',
+            title: 'Screen Curtain Toggle Shortcut',
             header_suffix: deleteShortcutButton
         });
 
         const shortcutKeyBoard = new ShortcutSettingWidget(
             settings,
             'curtain-shortcut',
-            'Toggle Keybind',
+            'Screen Curtain Toggle Keybind',
             'Press Enter to set or change shortcut'
         );
 
@@ -64,14 +64,14 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         });
 
         let groupStatus = new Adw.PreferencesGroup({
-            title: 'Status Announcement Shortcut',
+            title: 'Screen Curtain Status Announcement Shortcut',
             header_suffix: deleteStatusButton
         });
 
         const statusShortcutKeyBoard = new ShortcutSettingWidget(
             settings,
             'status-shortcut',
-            'Status Announcement Keybind',
+            'Screen Curtain Status Announcement Keybind',
             'Press Enter to set or change shortcut'
         );
 
@@ -96,11 +96,11 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
 
         // 3. Speech Settings Group (Slider Last)
         let speechGroup = new Adw.PreferencesGroup({
-            title: 'Speech Settings'
+            title: 'Voice Rate Settings'
         });
 
         let rateRow = new Adw.ActionRow({
-            title: 'Speech Output Rate Adjustment',
+            title: 'Voice Rate Adjustment',
             subtitle: 'Alters the speech rate of the speech dispatcher voice output using up/down arrows or page up/page down'
         });
 
