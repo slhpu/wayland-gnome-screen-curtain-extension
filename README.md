@@ -42,13 +42,15 @@ Installation:
 
 Ensure brightnessctl is installed on your system.
 
+`sudo dnf install brightnessctl` on fedora
+
+`sudo apt install brightnessctl` on ubuntu
+
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
 Clone or download this repository into your local GNOME extensions directory: 
 
-`git clone https://github.com/your-username/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local`
-
-Replace `your-username` with your actual username.
+`git clone https://github.com/slhpu/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local`
 
 The schema file should already be present in the schemas folder, you can check by looking for gschemas.compiled in the schemas folder, if it is not in the schemas folder or the extension erros then delete the file and compile the schema.
 
