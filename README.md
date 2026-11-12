@@ -49,7 +49,7 @@ Clone or download this repository into your local GNOME extensions directory: gi
 The schema file should already be present in the schemas folder, you can check by looking for gschemas.compiled in the schemas folder, if it is not in the schemas folder or the extension erros then delete the file and compile the schema.
 Compile the GSettings schema files: glib-compile-schemas ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local/schemas/
 
-Restart GNOME Shell (or log out and back in on Wayland).
+Restart GNOME Shell or log out and back in.
 
 Enable the extension using Extension Manager or via terminal: gnome-extensions enable screen-curtain@accessibility.local
 
@@ -58,4 +58,4 @@ License: This project is licensed under the GNU General Public License v3.0.
 About: This extension was built using the help of AI tools, but has been checked and edited by the author.
 
 I will not be updating this extension regularly except for my own personal use as I do not have the time or expertise to commit to extension maintenance.
-If you would like to fork this extension and package it for the gnome extension store then please feel free to do so with my thanks.
+If you would like to fork this extension and package it for download in the gnome extension manager then please feel free to do so with my thanks.
