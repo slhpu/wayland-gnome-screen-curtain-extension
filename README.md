@@ -8,9 +8,9 @@ This extension utilizes brightnessctl to drop hardware backlight brightness to z
 
 Please ensure brightnessctl is installed via your system package manager 
 
-sudo dnf install brightnessctl on Fedora
+`sudo dnf install brightnessctl` on Fedora
 
-sudo apt install brightnessctl on ubuntu
+`sudo apt install brightnessctl` on ubuntu
 
 This is not a hard requirement, the extension will check your PATH environment variable to check if brightnessctl is installed and if it is not that code will not execute.
 
@@ -20,9 +20,9 @@ Customizable keyboard shortcuts in preferences to toggle the screen curtain and 
 
 By default these are:
 
-Toggle screen curtain; Ctrl + Alt + m
+Toggle screen curtain; `Ctrl + Alt + M`
 
-Check screen curtain status; Ctrl + Super + m
+Check screen curtain status; `Ctrl + Super + M`
 
 Customizable voice rate slider in preferences to change the voice rate.
 
@@ -44,14 +44,21 @@ Ensure brightnessctl is installed on your system.
 
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
-Clone or download this repository into your local GNOME extensions directory: git clone https://github.com/your-username/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local
+Clone or download this repository into your local GNOME extensions directory: 
+
+`git clone https://github.com/your-username/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local`
+
+Replace `your-username` with your actual username.
 
 The schema file should already be present in the schemas folder, you can check by looking for gschemas.compiled in the schemas folder, if it is not in the schemas folder or the extension erros then delete the file and compile the schema.
-Compile the GSettings schema files: glib-compile-schemas ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local/schemas/
+
+`glib-compile-schemas ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local/schemas/`
 
 Restart GNOME Shell or log out and back in.
 
-Enable the extension using Extension Manager or via terminal: gnome-extensions enable screen-curtain@accessibility.local
+Enable the extension using Extension Manager or via terminal: 
+
+`gnome-extensions enable screen-curtain@accessibility.local`
 
 License: This project is licensed under the GNU General Public License v3.0.								
 
