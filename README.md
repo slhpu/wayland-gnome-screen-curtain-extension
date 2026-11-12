@@ -44,7 +44,7 @@ Ensure brightnessctl is installed on your system.
 
 `sudo dnf install brightnessctl` on fedora
 
-`sudo apt install brightnessctl` on ubuntu
+`sudo apt update && sudo apt install brightnessctl` on ubuntu
 
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
