@@ -1,16 +1,16 @@
 Wayland Screen Curtain for Accessibility and Privacy
 
-A GNOME Shell extension built for Wayland compositors that creates a pure black screen blackout overlay, sets hardware backlight brightness to zero using brightnessctl for absolute visual privacy, suppresses mouse cursor visibility, and delivers Speech Dispatcher audio feedback.
+A GNOME Shell extension built for Wayland compositors that creates a pure black screen blackout overlay, dims the hardware backlight while the screen curtain is active using brightnessctl, suppresses mouse cursor visibility, and delivers Speech Dispatcher audio feedback.
 
 Prerequisites:
 
-This extension utilizes brightnessctl to drop hardware backlight brightness to zero. 
+This extension utilizes brightnessctl to dim the hardware backlight while the screen curtain is active. 
 
 Please ensure brightnessctl is installed via your system package manager 
 
 `sudo dnf install brightnessctl` on Fedora
 
-`sudo apt install brightnessctl` on ubuntu
+`sudo apt install brightnessctl` on Ubuntu
 
 This is not a hard requirement, the extension will check your PATH environment variable to check if brightnessctl is installed and if it is not that code will not execute.
 
