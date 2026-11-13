@@ -4,6 +4,24 @@ A GNOME Shell extension built for Wayland compositors that creates a pure black 
 
 Prerequisites:
 
+Wayland sessio, this has only been tested for gnome 50 and 51, but may also work on earlier gnome wayland sessions if you change the metadata.json file to accommodate the version.
+
+Gnome Extension Manager, you will need the extension manager installed to access the preferences window.
+
+To install the Gnome Extension Manager
+
+On fedora 44/45 via flatpak
+
+`flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo`
+
+You can then search the software store for the gnome extension manager or run
+
+`flatpak install flathub com.mattjakeman.ExtensionManager`
+
+On Ubuntu 26.04 run
+
+`sudo apt update && sudo apt install gnome-shell-extension-manager`
+
 This extension utilizes brightnessctl to dim the hardware backlight while the screen curtain is active. 
 
 Please ensure brightnessctl is installed via your system package manager 
@@ -40,6 +58,20 @@ Speech Dispatcher audio feedback for curtain state changes.
 
 Installation:
 
+First install the Gnome Extension Manager
+
+On fedora 44/45 via flatpak
+
+`flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo`
+
+You can then search the software store for the gnome extension manager or run
+
+`flatpak install flathub com.mattjakeman.ExtensionManager`
+
+On Ubuntu 26.04 run
+
+`sudo apt update && sudo apt install gnome-shell-extension-manager`
+
 Ensure brightnessctl is installed on your system.
 
 `sudo dnf install brightnessctl` on fedora
@@ -48,7 +80,7 @@ Ensure brightnessctl is installed on your system.
 
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
-Clone or download this repository into your local GNOME extensions directory: 
+Next, clone or download this repository into your local GNOME extensions directory: 
 
 `git clone https://github.com/slhpu/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local`
 
