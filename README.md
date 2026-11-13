@@ -4,7 +4,7 @@ A GNOME Shell extension built for Wayland compositors that creates a pure black 
 
 Prerequisites:
 
-Wayland sessio, this has only been tested for gnome 50 and 51, but may also work on earlier gnome wayland sessions if you change the metadata.json file to accommodate the version.
+Wayland session, this has only been tested for gnome 50 and 51, but may also work on earlier gnome wayland sessions if you change the metadata.json file to accommodate the version.
 
 Gnome Extension Manager, you will need the extension manager installed to access the preferences window.
 
