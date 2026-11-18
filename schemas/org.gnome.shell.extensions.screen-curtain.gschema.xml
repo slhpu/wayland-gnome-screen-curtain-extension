@@ -5,6 +5,10 @@
       <default>['&lt;Control&gt;&lt;Alt&gt;m']</default>
       <summary>Custom shortcut key to toggle screen curtain</summary>
     </key>
+    <key name="mouse-shortcut" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;u']</default>
+      <summary>Custom shortcut key to toggle mouse visibility overlay</summary>
+    </key>
     <key name="speech-rate" type="i">
       <default>50</default>
       <summary>Speech Dispatcher rate offset value between -100 and 100</summary>
@@ -16,6 +20,10 @@
     <key name="status-shortcut" type="as">
       <default>['&lt;Control&gt;&lt;Super&gt;m']</default>
       <summary>Custom keyboard shortcut to check the state of the screen curtain</summary>
+    </key>
+    <key name="pointer-inhibition" type="b">
+      <default>true</default>
+      <summary>Enable or disable pointer inhibition and custom cursor handling</summary>
     </key>
   </schema>
 </schemalist>
