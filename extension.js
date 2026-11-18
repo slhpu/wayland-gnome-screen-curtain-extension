@@ -756,4 +756,3 @@ export default class ScreenCurtainExtension extends Extension {
         }
     }
 }
-
