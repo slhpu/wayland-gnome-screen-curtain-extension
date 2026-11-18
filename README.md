@@ -42,13 +42,17 @@ Toggle screen curtain; `Ctrl + Alt + M`
 
 Check screen curtain status; `Ctrl + Super + M`
 
+Customizable keyboard shortcut in preferences to toggle mouse inhibition while the curtain is active.
+
+By default this is: `Ctrl + Alt + U`
+
+Toggle switch in preferences to disable or enable mouse inhibition entirely for mouse tracking and flat review if you ever run into any issues.
+
 Customizable voice rate slider in preferences to change the voice rate.
 
 Pure black curtain overlays mapped across all active monitors.
 
 Hardware backlight dimming via brightnessctl integration.
-
-Mouse cursor visibility inhibition.
 
 Wayland unredirect inhibition to prevent fullscreen windows from bypassing the compositor layer.
 
@@ -80,7 +84,13 @@ Ensure brightnessctl is installed on your system.
 
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
-Next, clone or download this repository into your local GNOME extensions directory: 
+Next, clone or download this repository into your local GNOME extensions directory:
+
+To run the below command, ensure git is installed first.
+
+`sudo dnf innstall git` on fedora.
+
+`sudo apt update && sudo apt install git` on Ubuntu.
 
 `git clone https://github.com/slhpu/wayland-gnome-screen-curtain-extension.git ~/.local/share/gnome-shell/extensions/screen-curtain@accessibility.local`
 
@@ -98,5 +108,5 @@ License: This project is licensed under the GNU General Public License v3.0.
 
 About: This extension was built using the help of AI tools, but has been checked and edited by the author.
 
-I will not be updating this extension regularly except for my own personal use as I do not have the time or expertise to commit to extension maintenance.
+I will not be updating this extension regularly except for my own personal use as I do not have the time or expertise to commit to professional level extension maintenance.
 If you would like to fork this extension and package it for download in the gnome extension manager then please feel free to do so with my thanks.
