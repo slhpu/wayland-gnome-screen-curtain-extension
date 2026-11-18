@@ -9,8 +9,85 @@ import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+// MouseSpriteContent adapted from Soft Brightness Plus copied largely from cursor.js
+const MouseSpriteContent = GObject.registerClass({
+    Implements: [Clutter.Content],
+}, class MouseSpriteContent extends GObject.Object {
+    _init() {
+        super._init();
+        this._texture = null;
+    }
+
+    vfunc_get_preferred_size() {
+        if (!this._texture)
+            return [false, 0, 0];
+
+        return [true, this._texture.get_width(), this._texture.get_height()];
+    }
+
+    vfunc_paint_content(actor, node, _paintContext) {
+        if (!this._texture)
+            return;
+
+        let [minFilter, magFilter] = actor.get_content_scaling_filters();
+        let textureNode = new Clutter.TextureNode(this._texture,
+            null, minFilter, magFilter);
+        textureNode.set_name('ScreenCurtainMouseSpriteContent');
+        node.add_child(textureNode);
+
+        textureNode.add_rectangle(actor.get_content_box());
+    }
+
+    get texture() {
+        return this._texture;
+    }
+
+    set texture(coglTexture) {
+        if (this._texture === coglTexture)
+            return;
+
+        let oldTexture = this._texture;
+        this._texture = coglTexture;
+        this.invalidate();
+
+        if (!oldTexture || !coglTexture ||
+            oldTexture.get_width() !== coglTexture.get_width() ||
+            oldTexture.get_height() !== coglTexture.get_height())
+            this.invalidate_size();
+    }
+});
+
+// CursorTrackerPointerWatcher adapted from Soft Brightness Plus cursor.js
+class CursorTrackerPointerWatcher {
+    constructor(cursorTracker) {
+        this._cursorTracker = cursorTracker;
+    }
+
+    addWatch(fn) {
+        const laters = global.compositor.get_laters();
+        let laterId = 0;
+        const positionId = this._cursorTracker.connect('position-invalidated', () => {
+            if (laterId)
+                return;
+            laterId = laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+                laterId = 0;
+                fn();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        return {
+            remove: () => {
+                this._cursorTracker.disconnect(positionId);
+                if (laterId)
+                    laters.remove(laterId);
+            },
+        };
+    }
+}
 
 export default class ScreenCurtainExtension extends Extension {
     enable() {
@@ -18,7 +95,9 @@ export default class ScreenCurtainExtension extends Extension {
         this._actorGroup = null;
         this._overlays = [];
         this._curtainActive = false;
-        this._cursorInhibited = false;
+        this._cursorHidden = false;
+        this._cursorUnfocusInhibited = false;
+        this._userForcedMouseVisible = false;
         this._idleInitId = 0;
         this._idleWakeId = 0;
         this._cursorTracker = global.backend.get_cursor_tracker
@@ -27,11 +106,29 @@ export default class ScreenCurtainExtension extends Extension {
         this._dbusConnection = Gio.DBus.system;
         this._savedBrightness = null;
 
+        // Mouse cloning properties
+        this._cursorSprite = null;
+        this._cursorActor = null;
+        this._cursorWatcher = null;
+        this._cursorWatch = null;
+        this._cursorChangedConnection = null;
+        this._cursorVisibilityChangedConnection = null;
+
+        // Listen for changes to the pointer-inhibition setting dynamically
+        this._inhibitionChangedId = this._settings.connect('changed::pointer-inhibition', () => {
+            if (this._curtainActive) {
+                this._updateMouseInhibitionState();
+            }
+        });
+
         // Check if brightnessctl utility is installed in system path
         this._hasBrightnessCtl = GLib.find_program_in_path('brightnessctl') !== null;
 
-        // Create master actor container for stage overlays
-        this._actorGroup = new St.Widget({ name: 'screen-curtain-overlay-group' });
+        // Create master actor container for stage overlays (non-reactive so pointer clicks pass through)
+        this._actorGroup = new St.Widget({
+            name: 'screen-curtain-overlay-group',
+            reactive: false
+        });
         this._resetGroupSize();
         global.stage.add_child(this._actorGroup);
 
@@ -89,6 +186,34 @@ export default class ScreenCurtainExtension extends Extension {
             }
         );
 
+        // Register mouse visibility shortcut keybinding (bypassed if pointer-inhibition is disabled)
+        Main.wm.addKeybinding(
+            'mouse-shortcut',
+            this._settings,
+            Meta.KeyBindingFlags.NONE,
+            Shell.ActionMode.ALL,
+            () => {
+                if (!this._settings.get_boolean('pointer-inhibition')) {
+                    this._speakFeedback('Pointer inhibition is disabled');
+                    return;
+                }
+
+                if (this._curtainActive) {
+                    // Toggle forced visibility state when curtain is active
+                    this._userForcedMouseVisible = !this._userForcedMouseVisible;
+                    this._updateMouseInhibitionState();
+                    if (this._userForcedMouseVisible) {
+                        this._speakFeedback('mouse cursor visible');
+                    } else {
+                        this._speakFeedback('mouse cursor hidden');
+                    }
+                } else {
+                    // When curtain is off, shortcut output must be "screen curtain is off"
+                    this._speakFeedback('screen curtain is off');
+                }
+            }
+        );
+
         // Recompute curtain dimensions when display monitor configurations change
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             this._resetGroupSize();
@@ -137,6 +262,11 @@ export default class ScreenCurtainExtension extends Extension {
     }
 
     disable() {
+        if (this._inhibitionChangedId) {
+            this._settings.disconnect(this._inhibitionChangedId);
+            this._inhibitionChangedId = 0;
+        }
+
         // Clean up all background listeners, event connections, and timers
         if (this._idleInitId) {
             GLib.source_remove(this._idleInitId);
@@ -183,6 +313,7 @@ export default class ScreenCurtainExtension extends Extension {
         }
 
         // Restore hardware state and destroy overlay components
+        this._userForcedMouseVisible = false;
         this._restoreBrightness();
         this._clearCurtainLayers();
 
@@ -194,6 +325,7 @@ export default class ScreenCurtainExtension extends Extension {
 
         Main.wm.removeKeybinding('curtain-shortcut');
         Main.wm.removeKeybinding('status-shortcut');
+        Main.wm.removeKeybinding('mouse-shortcut');
         this._settings = null;
         this._cursorTracker = null;
         this._dbusConnection = null;
@@ -220,6 +352,10 @@ export default class ScreenCurtainExtension extends Extension {
             if (this._overlays[i]) {
                 this._actorGroup.set_child_above_sibling(this._overlays[i], null);
             }
+        }
+
+        if (this._cursorActor) {
+            this._actorGroup.set_child_above_sibling(this._cursorActor, null);
         }
     }
 
@@ -365,19 +501,160 @@ export default class ScreenCurtainExtension extends Extension {
         }
 
         if (active) {
+            // Reset user-forced mouse preference to default (hidden/inhibited) when turning curtain on
+            this._userForcedMouseVisible = false;
             if (!Main.screenShield.locked) {
                 this._drawCurtainLayers();
                 this._setBrightnessToZero();
             }
             this._speakFeedback('Screen curtain on');
         } else {
+            // Guarantee mouse is always visible when turning the curtain off
+            this._userForcedMouseVisible = false;
             this._restoreBrightness();
             this._clearCurtainLayers();
             this._speakFeedback('Screen curtain off');
         }
     }
 
-    // Instantiate screen blackout layers across monitors and suppress mouse cursor visibility
+    // Manages the actual inhibition state based on whether the curtain is active 
+    // and whether the user explicitly forced mouse visibility via shortcut, using Soft Brightness + seat/cursor inhibition pattern.
+    _updateMouseInhibitionState() {
+        if (!this._cursorTracker) return;
+
+        // If pointer inhibition is disabled in preferences, clear any active cloning/inhibition and return early
+        const pointerInhibitionEnabled = this._settings.get_boolean('pointer-inhibition');
+        const seat = Clutter.get_default_backend().get_default_seat();
+
+        if (!pointerInhibitionEnabled) {
+            this._disableCloningMouse();
+            if (seat && this._cursorUnfocusInhibited) {
+                seat.uninhibit_unfocus();
+                this._cursorUnfocusInhibited = false;
+            }
+            if (this._cursorHidden) {
+                this._cursorHidden = false;
+                this._cursorTracker.uninhibit_cursor_visibility();
+            }
+            global.stage.queue_redraw();
+            return;
+        }
+
+        const shouldInhibit = this._curtainActive && !this._userForcedMouseVisible;
+
+        if (shouldInhibit) {
+            if (seat && !this._cursorUnfocusInhibited) {
+                seat.inhibit_unfocus();
+                this._cursorUnfocusInhibited = true;
+            }
+            if (!this._cursorHidden) {
+                this._cursorHidden = true;
+                this._cursorTracker.inhibit_cursor_visibility();
+            }
+            this._disableCloningMouse();
+        } else {
+            if (seat && this._cursorUnfocusInhibited) {
+                seat.uninhibit_unfocus();
+                this._cursorUnfocusInhibited = false;
+            }
+            if (this._cursorHidden) {
+                this._cursorHidden = false;
+                this._cursorTracker.uninhibit_cursor_visibility();
+            }
+
+            // Enable mouse cloning if the curtain is active and user forced mouse visible,
+            if (this._curtainActive && this._userForcedMouseVisible) {
+                this._enableCloningMouse();
+            } else {
+                this._disableCloningMouse();
+            }
+        }
+
+        if (typeof this._cursorTracker.queue_image_update === 'function') {
+            this._cursorTracker.queue_image_update();
+        }
+        global.stage.queue_redraw();
+    }
+
+    _enableCloningMouse() {
+        if (this._cursorWatch !== null) return;
+        
+        this._cursorSprite = new Clutter.Actor({ request_mode: Clutter.RequestMode.CONTENT_SIZE });
+        this._cursorSprite.content = new MouseSpriteContent();
+
+        this._cursorActor = new Clutter.Actor();
+        this._cursorActor.add_child(this._cursorSprite);
+        this._cursorWatcher = new CursorTrackerPointerWatcher(this._cursorTracker);
+
+        this._actorGroup.add_child(this._cursorActor);
+        this._cursorChangedConnection = this._cursorTracker.connect(
+            'cursor-changed', this._updateMouseSprite.bind(this));
+        this._cursorVisibilityChangedConnection = this._cursorTracker.connect(
+            'visibility-changed', this._updateMouseSprite.bind(this));
+        this._cursorWatch = this._cursorWatcher.addWatch(this._updateMousePosition.bind(this));
+
+        this._updateMouseSprite();
+        this._updateMousePosition();
+        this._restackOverlays();
+    }
+
+    _disableCloningMouse() {
+        if (this._cursorWatch !== null) {
+            this._cursorWatch.remove();
+            this._cursorWatch = null;
+
+            if (this._cursorChangedConnection) {
+                this._cursorTracker.disconnect(this._cursorChangedConnection);
+                this._cursorChangedConnection = null;
+            }
+
+            if (this._cursorVisibilityChangedConnection) {
+                this._cursorTracker.disconnect(this._cursorVisibilityChangedConnection);
+                this._cursorVisibilityChangedConnection = null;
+            }
+
+            if (this._cursorActor && this._actorGroup) {
+                this._actorGroup.remove_child(this._cursorActor);
+            }
+        }
+
+        if (this._cursorSprite) {
+            this._cursorSprite.destroy();
+            this._cursorSprite = null;
+        }
+
+        if (this._cursorActor) {
+            this._cursorActor.destroy();
+            this._cursorActor = null;
+        }
+
+        this._cursorWatcher = null;
+    }
+
+    _updateMousePosition() {
+        if (!this._cursorActor) return;
+        const [x, y] = global.get_pointer();
+        this._cursorActor.set_position(x, y);
+    }
+
+    _updateMouseSprite() {
+        if (!this._cursorSprite || !this._cursorTracker) return;
+        const sprite = this._cursorTracker.get_sprite();
+        if (sprite) {
+            this._cursorSprite.content.texture = sprite;
+            this._cursorSprite.show();
+        } else {
+            this._cursorSprite.hide();
+        }
+
+        const [xHot, yHot] = this._cursorTracker.get_hot();
+        this._cursorSprite.set({
+            translation_x: -xHot,
+            translation_y: -yHot,
+        });
+    }
+
+    // Instantiate screen blackout layers across monitors and update mouse inhibition state
     _drawCurtainLayers() {
         this._clearCurtainLayers();
 
@@ -387,10 +664,11 @@ export default class ScreenCurtainExtension extends Extension {
 
         this._applyUnredirectInhibition(true);
 
+        // Set reactive: false so mouse clicks and hover events pass straight through to underlying windows
         const overlay = new St.Widget({
             name: 'ScreenCurtainLayer',
             style: 'background-color: #000000;',
-            reactive: true,
+            reactive: false,
             x: 0,
             y: 0,
             width: global.screen_width,
@@ -402,15 +680,15 @@ export default class ScreenCurtainExtension extends Extension {
 
         this._restackOverlays();
 
-        if (this._cursorTracker && !this._cursorInhibited && this._overlays.length > 0) {
-            this._cursorTracker.inhibit_cursor_visibility();
-            this._cursorInhibited = true;
-        }
+        // Update mouse cursor visibility according to current rules
+        this._updateMouseInhibitionState();
     }
 
-    // Clean up blackout actors and un-inhibit the mouse cursor
+    // Clean up blackout actors and un-inhibit the mouse cursor (always visible when curtain is off)
     _clearCurtainLayers() {
         this._applyUnredirectInhibition(false);
+
+        this._disableCloningMouse();
 
         if (this._actorGroup) {
             this._overlays.forEach(overlay => {
@@ -423,12 +701,24 @@ export default class ScreenCurtainExtension extends Extension {
         this._overlays = [];
         this._curtainActive = false;
 
-        if (this._cursorInhibited) {
-            this._cursorInhibited = false;
+        const seat = Clutter.get_default_backend().get_default_seat();
+
+        if (seat && this._cursorUnfocusInhibited) {
+            seat.uninhibit_unfocus();
+            this._cursorUnfocusInhibited = false;
+        }
+
+        if (this._cursorHidden) {
+            this._cursorHidden = false;
             if (this._cursorTracker) {
                 this._cursorTracker.uninhibit_cursor_visibility();
             }
         }
+
+        if (this._cursorTracker?.queue_image_update) {
+            this._cursorTracker.queue_image_update();
+        }
+        global.stage.queue_redraw();
     }
 
     // Call Speech Dispatcher (`spd-say`) to announce curtain state transitions
