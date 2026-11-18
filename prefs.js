@@ -94,7 +94,69 @@ export default class ScreenCurtainPreferences extends ExtensionPreferences {
         groupStatus.add(statusShortcutKeyBoard);
         page.add(groupStatus);
 
-        // 3. Speech Settings Group (Slider Last)
+        // 3. Mouse Visibility Shortcut Group (Third)
+        const deleteMouseButton = new Gtk.Button({
+            icon_name: 'edit-delete-symbolic',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['error'],
+            hexpand: false,
+            vexpand: false,
+            tooltip_text: 'Delete mouse visibility shortcut'
+        });
+
+        let groupMouse = new Adw.PreferencesGroup({
+            title: 'Mouse Visibility Shortcut',
+            header_suffix: deleteMouseButton
+        });
+
+        const mouseShortcutKeyBoard = new ShortcutSettingWidget(
+            settings,
+            'mouse-shortcut',
+            'Mouse Visibility Keybind',
+            'Press Enter to set or change shortcut'
+        );
+
+        if (!mouseShortcutKeyBoard.isAcceleratorSet()) {
+            deleteMouseButton.visible = false;
+        }
+
+        deleteMouseButton.connect('clicked', () => {
+            mouseShortcutKeyBoard.resetAccelerator();
+        });
+
+        settings.connect('changed::mouse-shortcut', () => {
+            if (mouseShortcutKeyBoard.isAcceleratorSet()) {
+                deleteMouseButton.visible = true;
+            } else {
+                deleteMouseButton.visible = false;
+            }
+        });
+
+        groupMouse.add(mouseShortcutKeyBoard);
+        page.add(groupMouse);
+
+        // 4. Pointer Inhibition Preference Group 
+        let inhibitionGroup = new Adw.PreferencesGroup({
+            title: 'Pointer Behavior',
+            description: 'Configure mouse cursor hiding and safety behaviour when the curtain is active'
+        });
+
+        let inhibitionRow = new Adw.SwitchRow({
+            title: 'Enable Pointer Inhibition & Custom Cursor',
+            subtitle: 'Hides system cursor and enables custom mouse handling when curtain is active'
+        });
+
+        settings.bind(
+            'pointer-inhibition',
+            inhibitionRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+
+        inhibitionGroup.add(inhibitionRow);
+        page.add(inhibitionGroup);
+
+        // 5. Speech Settings Group 
         let speechGroup = new Adw.PreferencesGroup({
             title: 'Voice Rate Settings'
         });
@@ -270,9 +332,9 @@ const ShortcutSettingWidget = class extends Adw.ActionRow {
 
     isValidBinding(mask, keycode, keyval) {
         return !(mask === 0 || (mask === Gdk.ModifierType.SHIFT_MASK && keycode !== 0 &&
-                 ((keyval >= Gdk.KEY_a && keyval <= Gdk.KEY_z) ||
-                     (keyval >= Gdk.KEY_A && keyval <= Gdk.KEY_Z) ||
-                     (keyval >= Gdk.KEY_0 && keyval <= Gdk.KEY_9) ||
+                 ((keyval >= Gdk.KEY_a && keyval <= Gdk.KEY_z) !== false ||
+                     (keyval >= Gdk.KEY_A && keyval <= Gdk.KEY_Z) !== false ||
+                     (keyval >= Gdk.KEY_0 && keyval <= Gdk.KEY_9) !== false ||
                      (keyval === Gdk.KEY_space && mask === 0) || this.keyvalIsForbidden(keyval)))
         );
     }
@@ -281,4 +343,3 @@ const ShortcutSettingWidget = class extends Adw.ActionRow {
         return Gtk.accelerator_valid(keyval, mask) || (keyval === Gdk.KEY_Tab && mask !== 0);
     }
 };
-
