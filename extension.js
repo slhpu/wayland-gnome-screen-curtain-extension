@@ -333,16 +333,25 @@ export default class ScreenCurtainExtension extends Extension {
         this._hasBrightnessCtl = false;
     }
 
-    //Reset the size of the overlay on new screen size
+    // Reset the size of the overlay across monitor layouts
     _resetGroupSize() {
-        if (this._actorGroup) {
-            this._actorGroup.set_size(global.screen_width, global.screen_height);
+        if (this._actorGroup && Main.layoutManager) {
+            let maxWidth = 0;
+            let maxHeight = 0;
+            for (let monitor of Main.layoutManager.monitors) {
+                maxWidth = Math.max(maxWidth, monitor.x + monitor.width);
+                maxHeight = Math.max(maxHeight, monitor.y + monitor.height);
+            }
+            this._actorGroup.set_size(
+                maxWidth > 0 ? maxWidth : global.stage.width,
+                maxHeight > 0 ? maxHeight : global.stage.height
+            );
         }
     }
 
-    //Continue to Stack the Overlay above new Parent groups spawned in Global.stage
+    // Continue to Stack the Overlay above new Parent groups spawned in Global.stage
     _restackOverlays() {
-        if (!this._actorGroup) return;
+        if (!this._actorGroup || !this._actorGroup.get_parent()) return;
 
         if (this._actorGroup.get_parent()) {
             this._actorGroup.get_parent().set_child_above_sibling(this._actorGroup, null);
@@ -417,7 +426,7 @@ export default class ScreenCurtainExtension extends Extension {
                 try {
                     p.wait_finish(res);
                 } catch (e) {
-                    // Handled
+                    console.error(`ScreenCurtain: brightnessctl set failed: ${e.message}`);
                 }
             });
         } catch (e) {
@@ -654,7 +663,7 @@ export default class ScreenCurtainExtension extends Extension {
         });
     }
 
-    // Instantiate screen blackout layers across monitors and update mouse inhibition state
+    // Instantiate screen blackout layers across all monitors and update mouse inhibition state
     _drawCurtainLayers() {
         this._clearCurtainLayers();
 
@@ -665,18 +674,20 @@ export default class ScreenCurtainExtension extends Extension {
         this._applyUnredirectInhibition(true);
 
         // Set reactive: false so mouse clicks and hover events pass straight through to underlying windows
-        const overlay = new St.Widget({
-            name: 'ScreenCurtainLayer',
-            style: 'background-color: #000000;',
-            reactive: false,
-            x: 0,
-            y: 0,
-            width: global.screen_width,
-            height: global.screen_height
-        });
+        for (let monitor of Main.layoutManager.monitors) {
+            const overlay = new St.Widget({
+                name: 'ScreenCurtainLayer',
+                style: 'background-color: #000000;',
+                reactive: false,
+                x: monitor.x,
+                y: monitor.y,
+                width: monitor.width,
+                height: monitor.height
+            });
 
-        this._actorGroup.add_child(overlay);
-        this._overlays.push(overlay);
+            this._actorGroup.add_child(overlay);
+            this._overlays.push(overlay);
+        }
 
         this._restackOverlays();
 
