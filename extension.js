@@ -104,7 +104,9 @@ export default class ScreenCurtainExtension extends Extension {
             ? global.backend.get_cursor_tracker()
             : Meta.CursorTracker.get_for_display(global.display);
         this._dbusConnection = Gio.DBus.system;
-        this._savedBrightness = null;
+        // Map of backlight device name -> saved brightness string before curtain activation
+        this._savedBrightnessMap = new Map();
+        this._missingBrightnessCtlLogged = false;
 
         // Mouse cloning properties
         this._cursorSprite = null;
@@ -329,8 +331,9 @@ export default class ScreenCurtainExtension extends Extension {
         this._settings = null;
         this._cursorTracker = null;
         this._dbusConnection = null;
-        this._savedBrightness = null;
+        this._savedBrightnessMap.clear();
         this._hasBrightnessCtl = false;
+        this._missingBrightnessCtlLogged = false;
     }
 
     // Reset the size of the overlay across monitor layouts
@@ -389,44 +392,131 @@ export default class ScreenCurtainExtension extends Extension {
         }
     }
 
-    // Query current backlight intensity level using brightnessctl
-    _getCurrentBrightness() {
-        if (!this._hasBrightnessCtl) return null;
-
-        let proc = null;
-        try {
-            proc = new Gio.Subprocess({
-                argv: ['brightnessctl', 'get'],
-                flags: Gio.SubprocessFlags.STDOUT_PIPE
-            });
-            proc.init(null);
-            let [success, stdout] = proc.communicate_utf8(null, null);
-            if (success && stdout) {
-                return stdout.trim();
+    // Resolve brightnessctl binary path, checking PATH and common system locations
+    _getBrightnessCtlBin() {
+        let bin = GLib.find_program_in_path('brightnessctl');
+        if (bin) {
+            this._hasBrightnessCtl = true;
+            this._missingBrightnessCtlLogged = false;
+            return bin;
+        }
+        const fallbackPaths = ['/usr/bin/brightnessctl', '/bin/brightnessctl', '/usr/local/bin/brightnessctl'];
+        for (const candidate of fallbackPaths) {
+            if (GLib.file_test(candidate, GLib.FileTest.IS_EXECUTABLE)) {
+                this._hasBrightnessCtl = true;
+                this._missingBrightnessCtlLogged = false;
+                return candidate;
             }
-        } catch (e) {
-            console.error(`ScreenCurtain: Failed to get current brightness via brightnessctl: ${e.message}`);
-        } finally {
-            proc = null;
+        }
+        this._hasBrightnessCtl = false;
+        if (!this._missingBrightnessCtlLogged) {
+            console.error('ScreenCurtain: brightnessctl not found; hardware backlight dimming will be skipped');
+            this._missingBrightnessCtlLogged = true;
         }
         return null;
     }
 
-    // Execute brightnessctl configuration changes asynchronously
-    _runBrightnessctl(value) {
-        if (!this._hasBrightnessCtl) return;
+    // Verify brightnessctl availability on demand in case PATH changed after enable()
+    _ensureBrightnessCtl() {
+        return this._getBrightnessCtlBin() !== null;
+    }
+
+    // Discover all backlight class devices via `brightnessctl -m -l -c backlight`
+    _getBacklightDevices() {
+        const bin = this._getBrightnessCtlBin();
+        if (!bin) return [];
 
         try {
-            let proc = new Gio.Subprocess({
-                argv: ['brightnessctl', 'set', value.toString()],
-                flags: Gio.SubprocessFlags.NONE
-            });
-            proc.init(null);
-            proc.wait_async(null, (p, res) => {
+            const proc = Gio.Subprocess.new(
+                [bin, '-m', '-l', '-c', 'backlight'],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            );
+            const [ok, stdout, stderr] = proc.communicate_utf8(null, null);
+            const exitStatus = proc.get_exit_status();
+            if (!ok || !proc.get_successful()) {
+                console.error(
+                    `ScreenCurtain: brightnessctl list failed (exit ${exitStatus}): ${stderr ? stderr.trim() : 'no stderr'}`
+                );
+                return [];
+            }
+
+            const devices = [];
+            if (stdout) {
+                for (const rawLine of stdout.split('\n')) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
+                    // Machine-readable (-m) format: device_name,class,current_brightness,percentage,max_brightness
+                    const parts = line.split(',');
+                    if (parts.length >= 3 && parts[1] === 'backlight' && parts[0]) {
+                        devices.push({
+                            name: parts[0],
+                            current: parts[2].trim(),
+                        });
+                    }
+                }
+            }
+            return devices;
+        } catch (e) {
+            console.error(`ScreenCurtain: Failed to enumerate backlight devices: ${e.message}`);
+            return [];
+        }
+    }
+
+    // Query current backlight intensity level using brightnessctl (for a specific device or default)
+    _getCurrentBrightness(device = null) {
+        const bin = this._getBrightnessCtlBin();
+        if (!bin) return null;
+
+        try {
+            const argv = device
+                ? [bin, '-d', device, 'get']
+                : [bin, 'get'];
+            const proc = Gio.Subprocess.new(
+                argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            );
+            const [ok, stdout, stderr] = proc.communicate_utf8(null, null);
+            const exitStatus = proc.get_exit_status();
+            if (!ok || !proc.get_successful()) {
+                console.error(
+                    `ScreenCurtain: brightnessctl get${device ? ` (${device})` : ''} failed (exit ${exitStatus}): ${stderr ? stderr.trim() : 'no stderr'}`
+                );
+                return null;
+            }
+            if (stdout) {
+                const val = stdout.trim();
+                return val.length > 0 ? val : null;
+            }
+        } catch (e) {
+            console.error(`ScreenCurtain: Failed to get current brightness via brightnessctl: ${e.message}`);
+        }
+        return null;
+    }
+
+    // Execute brightnessctl configuration changes asynchronously with error logging
+    _runBrightnessctl(value, device = null) {
+        const bin = this._getBrightnessCtlBin();
+        if (!bin) return;
+
+        try {
+            const argv = device
+                ? [bin, '-d', device, 'set', value.toString()]
+                : [bin, 'set', value.toString()];
+            const proc = Gio.Subprocess.new(
+                argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            );
+            proc.communicate_utf8_async(null, null, (p, res) => {
                 try {
-                    p.wait_finish(res);
+                    const [, , stderr] = p.communicate_utf8_finish(res);
+                    const exitStatus = p.get_exit_status();
+                    if (!p.get_successful()) {
+                        console.error(
+                            `ScreenCurtain: brightnessctl set ${value}${device ? ` (${device})` : ''} failed (exit ${exitStatus}): ${stderr ? stderr.trim() : 'no stderr'}`
+                        );
+                    }
                 } catch (e) {
-                    console.error(`ScreenCurtain: brightnessctl set failed: ${e.message}`);
+                    console.error(`ScreenCurtain: brightnessctl set wait failed: ${e.message}`);
                 }
             });
         } catch (e) {
@@ -434,30 +524,49 @@ export default class ScreenCurtainExtension extends Extension {
         }
     }
 
-    // Save previous hardware brightness level and drop backlight brightness to 0
+    // Save previous hardware brightness levels across all backlight devices and drop backlight brightness to 0
     _setBrightnessToZero() {
-        if (!this._hasBrightnessCtl) return;
+        if (!this._ensureBrightnessCtl()) return;
 
         try {
-            if (this._savedBrightness === null) {
-                const current = this._getCurrentBrightness();
-                if (current !== null) {
-                    this._savedBrightness = current;
+            const devices = this._getBacklightDevices();
+
+            if (devices.length > 0) {
+                for (const dev of devices) {
+                    // Only save non-zero brightness if we do not already have a saved value for this device
+                    if (!this._savedBrightnessMap.has(dev.name)) {
+                        const current = dev.current || this._getCurrentBrightness(dev.name);
+                        if (current !== null && current !== '0') {
+                            this._savedBrightnessMap.set(dev.name, current);
+                        }
+                    }
+                    this._runBrightnessctl(0, dev.name);
                 }
+            } else {
+                // Fallback to default device if backlight class enumeration returned none
+                if (!this._savedBrightnessMap.has('__default__')) {
+                    const current = this._getCurrentBrightness(null);
+                    if (current !== null && current !== '0') {
+                        this._savedBrightnessMap.set('__default__', current);
+                    }
+                }
+                this._runBrightnessctl(0, null);
             }
-            this._runBrightnessctl(0);
         } catch (e) {
             console.error(`ScreenCurtain: Failed to set brightness to zero: ${e.message}`);
         }
     }
 
-    // Restore hardware brightness back to original pre-curtain levels
+    // Restore hardware brightness back to original pre-curtain levels across all saved backlight devices
     _restoreBrightness() {
-        if (!this._hasBrightnessCtl || this._savedBrightness === null) return;
+        if (!this._ensureBrightnessCtl() || this._savedBrightnessMap.size === 0) return;
 
         try {
-            this._runBrightnessctl(this._savedBrightness);
-            this._savedBrightness = null;
+            for (const [device, savedValue] of this._savedBrightnessMap.entries()) {
+                const targetDevice = device === '__default__' ? null : device;
+                this._runBrightnessctl(savedValue, targetDevice);
+            }
+            this._savedBrightnessMap.clear();
         } catch (e) {
             console.error(`ScreenCurtain: Failed to restore brightness: ${e.message}`);
         }
@@ -756,3 +865,4 @@ export default class ScreenCurtainExtension extends Extension {
         }
     }
 }
+
