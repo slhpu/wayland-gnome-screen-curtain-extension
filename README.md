@@ -32,6 +32,8 @@ Please ensure brightnessctl is installed via your system package manager
 
 This is not a hard requirement, the extension will check your PATH environment variable to check if brightnessctl is installed and if it is not that code will not execute.
 
+Depending on your system and hardware backlight device brighnessctl may not have the permissions to run from within the extension even if it is installed. You can check this after installing the extension by following the installation instructions.
+
 Features:
 
 Customizable keyboard shortcuts in preferences to toggle the screen curtain and check the screen curtain state.
@@ -83,6 +85,12 @@ Ensure brightnessctl is installed on your system.
 `sudo apt update && sudo apt install brightnessctl` on ubuntu
 
 If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
+
+You may run into permission issues with brightnessctl depending on your backlight device and system, I found this more common on Ubuntu than fedora. Once you have completed installing the extension, you can check brightnessctl issues with the extension enabled and running the following in your terminal:
+
+`journalctl /usr/bin/gnome-shell -f | grep -i ScreenCurtain`
+
+If you toggle the screen curtain while this is active in your terminal it will help you determine any issues with brightnessctl. I would like to list how to fix them, but I can't reliably list them all. If you can't figure out the fix, just uninstall brightnessctl and let the extension run as normal without filling your journalctl with errors.
 
 Next, clone or download this repository into your local GNOME extensions directory:
 
