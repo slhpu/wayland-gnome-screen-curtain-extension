@@ -84,11 +84,14 @@ Ensure brightnessctl is installed on your system.
 
 `sudo apt update && sudo apt install brightnessctl` on ubuntu
 
-If you can't get brightnessctl, don't worry, the extension will check your PATH variable for brightnessctl and if it is not installed that code will not execute.
 
-###Hardware Backlight & `brightnessctl` Permissions This extension checks whether `brightnessctl` is available in your `PATH`. If `brightnessctl` is not installed, the extension skips hardware backlight control automatically and runs without backlight errors[span_1](start_span)[span_1](end_span). If `brightnessctl` is installed, permissions on your display backlight device may vary by distribution and driver (more common on Ubuntu than on Fedora)[span_2](start_span)[span_2](end_span). #### 
 
-1. Check for `brightnessctl` Errors With the extension enabled, monitor GNOME Shell logs while toggling the screen curtain: ```bash journalctl /usr/bin/gnome-shell -f | grep -i ScreenCurtain``` 
+Hardware Backlight & `brightnessctl` Permissions. 
+This extension checks whether `brightnessctl` is available in your `PATH`. If `brightnessctl` is not installed, the extension skips hardware backlight control automatically and runs without backlight errors. If `brightnessctl` is installed, permissions on your display backlight device may vary by distribution and driver (more common on Ubuntu than on Fedora. 
+
+1. Check for `brightnessctl` Errors With the extension enabled, monitor GNOME Shell logs while toggling the screen curtain:
+
+```journalctl /usr/bin/gnome-shell -f | grep -i ScreenCurtain``` 
 
 If you see permission errors such as:
 
