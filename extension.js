@@ -100,6 +100,8 @@ export default class ScreenCurtainExtension extends Extension {
         this._userForcedMouseVisible = false;
         this._idleInitId = 0;
         this._idleWakeId = 0;
+        this._windowCreatedIdleIds = new Set();
+        this._brightnessGeneration = 0;
         this._cursorTracker = global.backend.get_cursor_tracker
             ? global.backend.get_cursor_tracker()
             : Meta.CursorTracker.get_for_display(global.display);
@@ -156,11 +158,15 @@ export default class ScreenCurtainExtension extends Extension {
         // Enforce z-index stack handling when new windows spawn
         this._windowCreatedId = global.display.connect('window-created', (_, window) => {
             if (this._curtainActive) {
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._applyUnredirectInhibition(true);
-                    this._restackOverlays();
+                const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._windowCreatedIdleIds.delete(idleId);
+                    if (this._curtainActive) {
+                        this._applyUnredirectInhibition(true);
+                        this._restackOverlays();
+                    }
                     return GLib.SOURCE_REMOVE;
                 });
+                this._windowCreatedIdleIds.add(idleId);
             }
         });
 
@@ -239,7 +245,7 @@ export default class ScreenCurtainExtension extends Extension {
 
                 this._idleWakeId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                     this._idleWakeId = 0;
-                    if (this._settings && this._settings.get_boolean('curtain-active')) {
+                    if (this._settings && this._settings.get_boolean('curtain-active') && !Main.screenShield.locked) {
                         this._drawCurtainLayers();
                         this._setBrightnessToZero();
                     }
@@ -255,7 +261,7 @@ export default class ScreenCurtainExtension extends Extension {
         if (this._settings.get_boolean('curtain-active')) {
             this._idleInitId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 this._idleInitId = 0;
-                if (this._settings.get_boolean('curtain-active') && !Main.screenShield.locked) {
+                if (this._settings && this._settings.get_boolean('curtain-active') && !Main.screenShield.locked) {
                     this._setCurtainState(true);
                 }
                 return GLib.SOURCE_REMOVE;
@@ -278,6 +284,10 @@ export default class ScreenCurtainExtension extends Extension {
             GLib.source_remove(this._idleWakeId);
             this._idleWakeId = 0;
         }
+        for (const idleId of this._windowCreatedIdleIds) {
+            GLib.source_remove(idleId);
+        }
+        this._windowCreatedIdleIds.clear();
 
         if (this._actorAddedConnection) {
             global.stage.disconnect(this._actorAddedConnection);
@@ -494,7 +504,7 @@ export default class ScreenCurtainExtension extends Extension {
     }
 
     // Execute brightnessctl configuration changes asynchronously with error logging
-    _runBrightnessctl(value, device = null) {
+    _runBrightnessctl(value, device = null, generation = this._brightnessGeneration) {
         const bin = this._getBrightnessCtlBin();
         if (!bin) return;
 
@@ -509,6 +519,9 @@ export default class ScreenCurtainExtension extends Extension {
             proc.communicate_utf8_async(null, null, (p, res) => {
                 try {
                     const [, , stderr] = p.communicate_utf8_finish(res);
+                    if (generation !== this._brightnessGeneration) {
+                        return;
+                    }
                     const exitStatus = p.get_exit_status();
                     if (!p.get_successful()) {
                         console.error(
@@ -528,6 +541,8 @@ export default class ScreenCurtainExtension extends Extension {
     _setBrightnessToZero() {
         if (!this._ensureBrightnessCtl()) return;
 
+        const generation = ++this._brightnessGeneration;
+
         try {
             const devices = this._getBacklightDevices();
 
@@ -540,7 +555,7 @@ export default class ScreenCurtainExtension extends Extension {
                             this._savedBrightnessMap.set(dev.name, current);
                         }
                     }
-                    this._runBrightnessctl(0, dev.name);
+                    this._runBrightnessctl(0, dev.name, generation);
                 }
             } else {
                 // Fallback to default device if backlight class enumeration returned none
@@ -550,7 +565,7 @@ export default class ScreenCurtainExtension extends Extension {
                         this._savedBrightnessMap.set('__default__', current);
                     }
                 }
-                this._runBrightnessctl(0, null);
+                this._runBrightnessctl(0, null, generation);
             }
         } catch (e) {
             console.error(`ScreenCurtain: Failed to set brightness to zero: ${e.message}`);
@@ -559,12 +574,13 @@ export default class ScreenCurtainExtension extends Extension {
 
     // Restore hardware brightness back to original pre-curtain levels across all saved backlight devices
     _restoreBrightness() {
+        const generation = ++this._brightnessGeneration;
         if (!this._ensureBrightnessCtl() || this._savedBrightnessMap.size === 0) return;
 
         try {
             for (const [device, savedValue] of this._savedBrightnessMap.entries()) {
                 const targetDevice = device === '__default__' ? null : device;
-                this._runBrightnessctl(savedValue, targetDevice);
+                this._runBrightnessctl(savedValue, targetDevice, generation);
             }
             this._savedBrightnessMap.clear();
         } catch (e) {
@@ -596,7 +612,7 @@ export default class ScreenCurtainExtension extends Extension {
 
                         this._idleWakeId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                             this._idleWakeId = 0;
-                            if (this._settings && this._settings.get_boolean('curtain-active')) {
+                            if (this._settings && this._settings.get_boolean('curtain-active') && !Main.screenShield.locked) {
                                 this._drawCurtainLayers();
                                 this._setBrightnessToZero();
                             }
@@ -612,7 +628,8 @@ export default class ScreenCurtainExtension extends Extension {
 
     // Toggle active status of curtain, updating settings, hardware brightness, and voice feedback
     _setCurtainState(active) {
-        if (this._curtainActive === active) return;
+        const persistedActive = this._settings ? this._settings.get_boolean('curtain-active') : this._curtainActive;
+        if (this._curtainActive === active && persistedActive === active) return;
 
         if (this._settings) {
             this._settings.set_boolean('curtain-active', active);
@@ -865,4 +882,3 @@ export default class ScreenCurtainExtension extends Extension {
         }
     }
 }
-
